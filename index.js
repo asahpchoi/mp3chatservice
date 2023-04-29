@@ -4,7 +4,7 @@ const express = require("express"),
   url = require("url"),
   { Configuration, OpenAIApi } = require("openai"),
   configuration = new Configuration({
-    apiKey: process.env.KEY,
+    apiKey: process.env.apiKey,
   });
 const openai = new OpenAIApi(configuration);
 const app = express();
