@@ -21,6 +21,14 @@ var storage = multer.diskStorage({
 });
 var upload = multer({ storage: storage });
 
+async function getTranscription(file) {
+  const result = await openai.createTranscription(
+    fs.createReadStream(file),
+    "whisper-1"
+  );
+  return result.data.text;
+}
+
 app.post("/upload", upload.single("file"), async (req, res, next) => {
   const file = req.file;
   if (!file) {
@@ -29,17 +37,13 @@ app.post("/upload", upload.single("file"), async (req, res, next) => {
     return next(error);
   }
 
-  openai
-    .createTranscription(fs.createReadStream(file.path), "whisper-1")
-    .catch((e) => console.log({ e }))
-    .then((r) => {
-      res.json({ result: r.data.text });
-    });
+  const result = await getTranscription(file.path);
+
+  res.json({ result });
 });
 
 app.get("/", async (req, res) => {
-  console.log(process.env.apiKey);
-  res.json({ testing: "123", server: process.env.apiKey });
+  res.json({ server: "up" });
 });
 
 const PORT = 3000;
