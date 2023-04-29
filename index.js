@@ -31,7 +31,7 @@ async function getTranscription(file) {
 
 async function getSummary(text) {
   var axios = require("axios");
-  const systemMsg = `You are an assistant that only speaks in Markdown. Do not write text that isn't formatted as markdown.
+  const systemMsg = `You are a mindreader that only speaks in Markdown.  
 
 Example formatting:
 
@@ -43,22 +43,22 @@ This audio recording documents a test of a no-code workflow using Google Drive a
 
 --Additional Info--
 
-## Main Points
+## Main points in the conversation
 
 - point 1
 - point 2
 
-## Action Items
+## Problems and Solutions
 
 - point 1
 - point 2
 
-## Follow Up Questions
+## Action Plan
 
 - point 1
 - point 2
 
-## Potential Arguments Against
+## Evaluation of the converstation
 
 - point 1
 - point 2
