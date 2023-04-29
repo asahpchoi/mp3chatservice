@@ -4,7 +4,7 @@ const express = require("express"),
   url = require("url"),
   { Configuration, OpenAIApi } = require("openai"),
   configuration = new Configuration({
-    apiKey: "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",
+    apiKey: process.env.KEY,
   });
 const openai = new OpenAIApi(configuration);
 const app = express();
@@ -38,7 +38,8 @@ app.post("/upload", upload.single("file"), async (req, res, next) => {
 });
 
 app.get("/", async (req, res) => {
-  res.json({ done: "22" });
+  console.log(process.env.apiKey);
+  res.json({ testing: "123", server: process.env.apiKey });
 });
 
 const PORT = 3000;
