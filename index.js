@@ -61,10 +61,40 @@ app.post("/upload", upload.single("file"), async (req, res, next) => {
 });
 
 app.get("/", async (req, res) => {
+  const test = await getMessages(
+    "act as an assistant to take note",
+    "hello world"
+  );
+  console.log(test);
+
   res.json({ server: "up" });
 });
 
-async function getSummarywithInstructions(text, systemMsg, userMsg) {
+async function getMessages(action, text) {
+  const templates = await getMessageTemplates();
+  const msgs = templates.filter((x) => x[0] === action);
+  console.log({ msgs });
+  const result = {
+    systemMsg: msgs[0][1],
+    userMsg: msgs[0][2].replace("${text}", text),
+  };
+  return result;
+}
+
+app.get("/getMessageList", async (req, res) => {
+  const result = await getMessageTemplates();
+  res.json(result.map((x) => x[0]));
+});
+
+async function getMessageTemplates() {
+  const axios = require("axios");
+  const url =
+    "https://sheets.googleapis.com/v4/spreadsheets/1ojEnp8fsHmX-TMmIBaBowAxPfNwjZEZRfjS8R3a__Ys/values/Sheet1?key=AIzaSyCwJ7emYea23StNGIYTXlyY_E1Hm-pcsxo";
+  const msgs = await axios.get(url);
+  return msgs.data.values;
+}
+
+async function getSummarywithInstructions(systemMsg, userMsg) {
   var axios = require("axios");
 
   messages = [
@@ -72,10 +102,12 @@ async function getSummarywithInstructions(text, systemMsg, userMsg) {
     { role: "user", content: userMsg },
   ];
 
+  console.log({ messages });
+
   var data = JSON.stringify({
     model: "gpt-3.5-turbo",
     messages,
-    temperature: 0.8,
+    temperature: 0.5,
   });
 
   var config = {
@@ -96,57 +128,12 @@ async function getSummarywithInstructions(text, systemMsg, userMsg) {
 }
 
 async function getSummary(text) {
-  const systemMsg = `You are an assistant that only speaks in Markdown.  
+  const { systemMsg, userMsg } = await getMessages(
+    "act as an assistant to take note",
+    text
+  );
 
-Example formatting:
-
-Testing No-Code Workflow
-
---Summary--
-
-This audio recording documents a test of a no-code workflow using Google Drive and a single code step to reduce calls and improve efficiency.
-
---Additional Info--
-
-## Main points in the conversation
-
-- point 1
-- point 2
-
-## Problems and Solutions
-
-- point 1
-- point 2
-
-## Action Plan
-
-- point 1
-- point 2
-
-## Evaluation of the converstation
-
-- point 1
-- point 2
-   `;
-  const userMsg = `Write a Title for the transcript that is under 15 words.
-
-Then write: "--Summary--"
-
-Write "Summary" as a Heading 1.
-
-Write a summary of the provided transcript.
-
-Then write: "--Additional Info--".
-
-Then return a list of the main points in the provided transcript. Then return a list of action items. Then return a list of follow up questions. Then return a list of potential arguments against the transcript.
-
-For each list, return a Heading 2 before writing the list items. Limit each list item to 100 words, and return no more than 5 points per list.
-
-Transcript:
-
-${text}`;
-
-  return await getSummarywithInstructions(text, systemMsg, userMsg);
+  return await getSummarywithInstructions(systemMsg, userMsg);
 }
 
 const PORT = 3000;
