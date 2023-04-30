@@ -56,9 +56,7 @@ app.post("/upload", upload.single("file"), async (req, res, next) => {
   }
 
   const result = await getTranscription(file.path);
-  //const summary = await getSummary(result);
 
-  //res.json({ result, summary });
   res.json({ result });
 });
 
@@ -98,7 +96,7 @@ async function getSummarywithInstructions(text, systemMsg, userMsg) {
 }
 
 async function getSummary(text) {
-  const systemMsg = `You are a mindreader that only speaks in Markdown.  
+  const systemMsg = `You are an assistant that only speaks in Markdown.  
 
 Example formatting:
 
@@ -129,7 +127,7 @@ This audio recording documents a test of a no-code workflow using Google Drive a
 
 - point 1
 - point 2
-  `;
+   `;
   const userMsg = `Write a Title for the transcript that is under 15 words.
 
 Then write: "--Summary--"
