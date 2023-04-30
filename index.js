@@ -22,7 +22,17 @@ async function getTranscription(file) {
 }
 
 app.post("/getSummary", async (req, res) => {
-  const summary = await getSummary(req.body.transcript);
+  let summmary = null;
+  if (req.body.systemMsg && req.body.userMsg) {
+    summary = await getSummarywithInstructions(
+      req.body.transcript,
+      req.body.systemMsg,
+      req.body.userMsg
+    );
+  } else {
+    summary = await getSummary(req.body.transcript);
+  }
+
   res.json({ summary });
 });
 
@@ -56,8 +66,38 @@ app.get("/", async (req, res) => {
   res.json({ server: "up" });
 });
 
-async function getSummary(text) {
+async function getSummarywithInstructions(text, systemMsg, userMsg) {
   var axios = require("axios");
+
+  messages = [
+    { role: "system", content: systemMsg },
+    { role: "user", content: userMsg },
+  ];
+
+  var data = JSON.stringify({
+    model: "gpt-3.5-turbo",
+    messages,
+    temperature: 0.8,
+  });
+
+  var config = {
+    method: "post",
+    maxBodyLength: Infinity,
+    url: "https://api.openai.com/v1/chat/completions",
+    headers: {
+      Authorization: `Bearer ${process.env.apiKey}`,
+      "Content-Type": "application/json",
+    },
+    data: data,
+  };
+
+  const result = await axios(config);
+
+  //console.log({ result: result.data.choices[0].message });
+  return result.data.choices[0].message;
+}
+
+async function getSummary(text) {
   const systemMsg = `You are a mindreader that only speaks in Markdown.  
 
 Example formatting:
@@ -108,32 +148,7 @@ Transcript:
 
 ${text}`;
 
-  messages = [
-    { role: "system", content: systemMsg },
-    { role: "user", content: userMsg },
-  ];
-
-  var data = JSON.stringify({
-    model: "gpt-3.5-turbo",
-    messages,
-    temperature: 0.8,
-  });
-
-  var config = {
-    method: "post",
-    maxBodyLength: Infinity,
-    url: "https://api.openai.com/v1/chat/completions",
-    headers: {
-      Authorization: `Bearer ${process.env.apiKey}`,
-      "Content-Type": "application/json",
-    },
-    data: data,
-  };
-
-  const result = await axios(config);
-
-  //console.log({ result: result.data.choices[0].message });
-  return result.data.choices[0].message;
+  return await getSummarywithInstructions(text, systemMsg, userMsg);
 }
 
 const PORT = 3000;
