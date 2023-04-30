@@ -23,15 +23,9 @@ async function getTranscription(file) {
 
 app.post("/getSummary", async (req, res) => {
   let summmary = null;
-  if (req.body.systemMsg && req.body.userMsg) {
-    summary = await getSummarywithInstructions(
-      req.body.transcript,
-      req.body.systemMsg,
-      req.body.userMsg
-    );
-  } else {
-    summary = await getSummary(req.body.transcript);
-  }
+  console.log(req.body);
+
+  summary = await getSummary(req.body.transcript, req.body.actas);
 
   res.json({ summary });
 });
@@ -65,7 +59,7 @@ app.get("/", async (req, res) => {
     "act as an assistant to take note",
     "hello world"
   );
-  console.log(test);
+  //console.log(test);
 
   res.json({ server: "up" });
 });
@@ -73,11 +67,12 @@ app.get("/", async (req, res) => {
 async function getMessages(action, text) {
   const templates = await getMessageTemplates();
   const msgs = templates.filter((x) => x[0] === action);
-  console.log({ msgs });
+  //console.log({ msgs });
   const result = {
     systemMsg: msgs[0][1],
     userMsg: msgs[0][2].replace("${text}", text),
   };
+
   return result;
 }
 
@@ -102,7 +97,7 @@ async function getSummarywithInstructions(systemMsg, userMsg) {
     { role: "user", content: userMsg },
   ];
 
-  console.log({ messages });
+  //console.log({ messages });
 
   var data = JSON.stringify({
     model: "gpt-3.5-turbo",
@@ -127,11 +122,8 @@ async function getSummarywithInstructions(systemMsg, userMsg) {
   return result.data.choices[0].message;
 }
 
-async function getSummary(text) {
-  const { systemMsg, userMsg } = await getMessages(
-    "act as an assistant to take note",
-    text
-  );
+async function getSummary(text, actas) {
+  const { systemMsg, userMsg } = await getMessages(actas, text);
 
   return await getSummarywithInstructions(systemMsg, userMsg);
 }
