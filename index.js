@@ -9,6 +9,22 @@ const express = require("express"),
 const openai = new OpenAIApi(configuration);
 const app = express();
 app.use(cors());
+var bodyParser = require("body-parser");
+app.use(bodyParser.urlencoded({ extended: true }));
+app.use(bodyParser.json());
+
+async function getTranscription(file) {
+  const result = await openai.createTranscription(
+    fs.createReadStream(file),
+    "whisper-1"
+  );
+  return result.data.text;
+}
+
+app.post("/getSummary", async (req, res) => {
+  const summary = await getSummary(req.body.transcript);
+  res.json({ summary });
+});
 
 const multer = require("multer");
 var storage = multer.diskStorage({
@@ -21,13 +37,24 @@ var storage = multer.diskStorage({
 });
 var upload = multer({ storage: storage });
 
-async function getTranscription(file) {
-  const result = await openai.createTranscription(
-    fs.createReadStream(file),
-    "whisper-1"
-  );
-  return result.data.text;
-}
+app.post("/upload", upload.single("file"), async (req, res, next) => {
+  const file = req.file;
+  if (!file) {
+    const error = new Error("Please upload a file");
+    error.httpStatusCode = 400;
+    return next(error);
+  }
+
+  const result = await getTranscription(file.path);
+  //const summary = await getSummary(result);
+
+  //res.json({ result, summary });
+  res.json({ result });
+});
+
+app.get("/", async (req, res) => {
+  res.json({ server: "up" });
+});
 
 async function getSummary(text) {
   var axios = require("axios");
@@ -108,30 +135,6 @@ ${text}`;
   //console.log({ result: result.data.choices[0].message });
   return result.data.choices[0].message;
 }
-
-app.post("/getSummary", (req, res) => {
-  let data = req.body;
-  res.send("Data Received: " + JSON.stringify(data));
-});
-
-app.post("/upload", upload.single("file"), async (req, res, next) => {
-  const file = req.file;
-  if (!file) {
-    const error = new Error("Please upload a file");
-    error.httpStatusCode = 400;
-    return next(error);
-  }
-
-  const result = await getTranscription(file.path);
-  //const summary = await getSummary(result);
-
-  //res.json({ result, summary });
-  res.json({ result });
-});
-
-app.get("/", async (req, res) => {
-  res.json({ server: "up" });
-});
 
 const PORT = 3000;
 app.listen(PORT, () => {
