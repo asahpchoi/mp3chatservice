@@ -109,6 +109,11 @@ ${text}`;
   return result.data.choices[0].message;
 }
 
+app.post("/getSummary", (req, res) => {
+  let data = req.body;
+  res.send("Data Received: " + JSON.stringify(data));
+});
+
 app.post("/upload", upload.single("file"), async (req, res, next) => {
   const file = req.file;
   if (!file) {
@@ -118,9 +123,10 @@ app.post("/upload", upload.single("file"), async (req, res, next) => {
   }
 
   const result = await getTranscription(file.path);
-  const summary = await getSummary(result);
+  //const summary = await getSummary(result);
 
-  res.json({ result, summary });
+  //res.json({ result, summary });
+  res.json({ result });
 });
 
 app.get("/", async (req, res) => {
