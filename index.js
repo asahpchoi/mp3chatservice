@@ -14,11 +14,15 @@ app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 
 async function getTranscription(file) {
-  const result = await openai.createTranscription(
-    fs.createReadStream(file),
-    "whisper-1"
-  );
-  return result.data.text;
+  try {
+    const result = await openai.createTranscription(
+      fs.createReadStream(file),
+      "whisper-1"
+    );
+    return result.data.text;
+  } catch (error) {
+    return "Error";
+  }
 }
 
 app.post("/getSummary", async (req, res) => {
@@ -77,8 +81,12 @@ async function getMessages(action, text) {
 }
 
 app.get("/getMessageList", async (req, res) => {
-  const result = await getMessageTemplates();
-  res.json(result.map((x) => x[0]));
+  try {
+    const result = await getMessageTemplates();
+    res.json(result.map((x) => x[0]));
+  } catch (error) {
+    res.json({ message: "error" });
+  }
 });
 
 async function getMessageTemplates() {
