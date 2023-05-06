@@ -1,3 +1,4 @@
+// Importing required packages
 const express = require("express"),
   cors = require("cors"),
   fs = require("fs"),
@@ -6,13 +7,22 @@ const express = require("express"),
   configuration = new Configuration({
     apiKey: process.env.apiKey,
   });
+
+// Creating an instance of OpenAI API
 const openai = new OpenAIApi(configuration);
+
+// Initializing the Express app
 const app = express();
+
+// Adding CORS middleware to allow cross-origin requests
 app.use(cors());
+
+// Adding body-parser middleware to parse incoming request bodies
 var bodyParser = require("body-parser");
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
 
+// Async function to get transcription from an audio file
 async function getTranscription(file) {
   try {
     const result = await openai.createTranscription(
@@ -25,6 +35,7 @@ async function getTranscription(file) {
   }
 }
 
+// Route to get a summary of a given transcript
 app.post("/getSummary", async (req, res) => {
   let summmary = null;
   console.log(req.body);
@@ -34,6 +45,7 @@ app.post("/getSummary", async (req, res) => {
   res.json({ summary });
 });
 
+// Multer middleware to handle file uploads
 const multer = require("multer");
 var storage = multer.diskStorage({
   destination: function (req, file, cb) {
@@ -45,6 +57,7 @@ var storage = multer.diskStorage({
 });
 var upload = multer({ storage: storage });
 
+// Route to handle file uploads and get the transcription of the uploaded file
 app.post("/upload", upload.single("file"), async (req, res, next) => {
   const file = req.file;
   if (!file) {
@@ -58,6 +71,7 @@ app.post("/upload", upload.single("file"), async (req, res, next) => {
   res.json({ result });
 });
 
+// Default route to check if the server is up and running
 app.get("/", async (req, res) => {
   const test = await getMessages(
     "act as an assistant to take note",
@@ -68,6 +82,16 @@ app.get("/", async (req, res) => {
   res.json({ server: "up" });
 });
 
+// Async function to get message templates from a Google Sheet
+async function getMessageTemplates() {
+  const axios = require("axios");
+  const url =
+    "https://sheets.googleapis.com/v4/spreadsheets/1ojEnp8fsHmX-TMmIBaBowAxPfNwjZEZRfjS8R3a__Ys/values/Sheet1?key=AIzaSyCwJ7emYea23StNGIYTXlyY_E1Hm-pcsxo";
+  const msgs = await axios.get(url);
+  return msgs.data.values;
+}
+
+// Async function to get system and user messages for a given action and text
 async function getMessages(action, text) {
   const templates = await getMessageTemplates();
   const msgs = templates.filter((x) => x[0] === action);
@@ -80,6 +104,7 @@ async function getMessages(action, text) {
   return result;
 }
 
+// Route to get a list of available message actions
 app.get("/getMessageList", async (req, res) => {
   try {
     const result = await getMessageTemplates();
@@ -89,14 +114,7 @@ app.get("/getMessageList", async (req, res) => {
   }
 });
 
-async function getMessageTemplates() {
-  const axios = require("axios");
-  const url =
-    "https://sheets.googleapis.com/v4/spreadsheets/1ojEnp8fsHmX-TMmIBaBowAxPfNwjZEZRfjS8R3a__Ys/values/Sheet1?key=AIzaSyCwJ7emYea23StNGIYTXlyY_E1Hm-pcsxo";
-  const msgs = await axios.get(url);
-  return msgs.data.values;
-}
-
+// Async function to get a summary of the given text based on a system message and a user message
 async function getSummarywithInstructions(systemMsg, userMsg) {
   var axios = require("axios");
 
@@ -104,8 +122,6 @@ async function getSummarywithInstructions(systemMsg, userMsg) {
     { role: "system", content: systemMsg },
     { role: "user", content: userMsg },
   ];
-
-  //console.log({ messages });
 
   var data = JSON.stringify({
     model: "gpt-3.5-turbo",
@@ -126,16 +142,17 @@ async function getSummarywithInstructions(systemMsg, userMsg) {
 
   const result = await axios(config);
 
-  //console.log({ result: result.data.choices[0].message });
   return result.data.choices[0].message;
 }
 
+// Async function to get a summary of the given text
 async function getSummary(text, actas) {
   const { systemMsg, userMsg } = await getMessages(actas, text);
 
   return await getSummarywithInstructions(systemMsg, userMsg);
 }
 
+// Starting the server
 const PORT = 3000;
 app.listen(PORT, () => {
   console.log(`Server is listening on port ${PORT}`);
