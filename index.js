@@ -35,6 +35,57 @@ async function getTranscription(file) {
   }
 }
 
+app.post("/createPage", async (req, res) => {
+  const { Client } = require("@notionhq/client");
+
+  const token = "secret_JUsbKVd6EB0zgqwe1gWo4SmThx5Q9Jo2CFT4YP0Oi3f";
+  const notion = new Client({ auth: token });
+  const title = new Date().toLocaleString();
+  const body = req.body.content.split("\r\n\r\n");
+  const rich_text = body.map((data) => {
+    const text = {
+      type: "text",
+      text: {
+        content: data + "\n",
+      },
+    };
+    return text;
+  });
+
+  console.log({ body });
+  const payload = {
+    parent: {
+      database_id: "fd6156d0cfce4550bcfeabe28456a78b",
+    },
+    properties: {
+      Title: {
+        id: "pageid",
+        type: "title",
+        title: [
+          {
+            type: "text",
+            text: {
+              content: title,
+            },
+          },
+        ],
+      },
+    },
+    children: [
+      {
+        object: "block",
+        type: "paragraph",
+        paragraph: {
+          rich_text,
+        },
+      },
+    ],
+  };
+
+  const response = await notion.pages.create(payload);
+  res.json(response);
+});
+
 // Route to get a summary of a given transcript
 app.post("/getSummary", async (req, res) => {
   let summmary = null;
