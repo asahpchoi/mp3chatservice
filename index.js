@@ -7,6 +7,9 @@ const express = require("express"),
   configuration = new Configuration({
     apiKey: process.env.apiKey,
   });
+const { Client } = require("@notionhq/client");
+
+const token = "secret_JUsbKVd6EB0zgqwe1gWo4SmThx5Q9Jo2CFT4YP0Oi3f";
 
 // Creating an instance of OpenAI API
 const openai = new OpenAIApi(configuration);
@@ -36,9 +39,6 @@ async function getTranscription(file) {
 }
 
 app.post("/createPage", async (req, res) => {
-  const { Client } = require("@notionhq/client");
-
-  const token = "secret_JUsbKVd6EB0zgqwe1gWo4SmThx5Q9Jo2CFT4YP0Oi3f";
   const notion = new Client({ auth: token });
   const title = new Date().toLocaleString();
   const body = req.body.content.split("\r\n\r\n");
@@ -142,14 +142,41 @@ async function getMessageTemplates() {
   return msgs.data.values;
 }
 
+async function getNotionTemplates() {
+  const notion = new Client({ auth: token });
+  let results = [];
+
+  const databaseId = "66082d850c7d421da628c752454fdde9";
+  const response = await notion.databases.query({
+    database_id: databaseId,
+  });
+  try {
+    results = response.results
+      .map((i) => i.properties)
+      .filter((p) => p["Name"]["title"][0])
+      .map((p) => {
+        const data = {
+          title: p["Name"]["title"][0]["plain_text"],
+          format: p["Format"]["rich_text"][0]["plain_text"],
+          instruction: p["Instruction"]["rich_text"][0]["plain_text"],
+        };
+        return data;
+      });
+    return results;
+  } catch (x) {
+    console.log({ debug: response.results });
+  }
+}
+
 // Async function to get system and user messages for a given action and text
 async function getMessages(action, text) {
-  const templates = await getMessageTemplates();
-  const msgs = templates.filter((x) => x[0] === action);
-  //console.log({ msgs });
+  const templates = await getNotionTemplates();
+  console.log({ templates });
+  const msgs = templates.filter((x) => x.title === action);
+
   const result = {
-    systemMsg: msgs[0][1],
-    userMsg: msgs[0][2].replace("${text}", text),
+    systemMsg: msgs[0].format,
+    userMsg: msgs[0].instruction.replace("${text}", text),
   };
 
   return result;
@@ -157,12 +184,9 @@ async function getMessages(action, text) {
 
 // Route to get a list of available message actions
 app.get("/getMessageList", async (req, res) => {
-  try {
-    const result = await getMessageTemplates();
-    res.json(result.map((x) => x[0]));
-  } catch (error) {
-    res.json({ message: "error" });
-  }
+  const result = await getNotionTemplates();
+
+  res.json(result.map((x) => x.title));
 });
 
 // Async function to get a summary of the given text based on a system message and a user message
