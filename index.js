@@ -27,6 +27,7 @@ app.use(bodyParser.json());
 
 // Async function to get transcription from an audio file
 async function getTranscription(file) {
+  console.log("transcripting");
   try {
     const result = await openai.createTranscription(
       fs.createReadStream(file),
@@ -81,6 +82,7 @@ app.post("/createPage", async (req, res) => {
       },
     ],
   };
+  console.log({ payload });
 
   const response = await notion.pages.create(payload);
   res.json(response);
@@ -133,15 +135,6 @@ app.get("/", async (req, res) => {
   res.json({ server: "up" });
 });
 
-// Async function to get message templates from a Google Sheet
-async function getMessageTemplates() {
-  const axios = require("axios");
-  const url =
-    "https://sheets.googleapis.com/v4/spreadsheets/1ojEnp8fsHmX-TMmIBaBowAxPfNwjZEZRfjS8R3a__Ys/values/Sheet1?key=AIzaSyCwJ7emYea23StNGIYTXlyY_E1Hm-pcsxo";
-  const msgs = await axios.get(url);
-  return msgs.data.values;
-}
-
 async function getNotionTemplates() {
   const notion = new Client({ auth: token });
   let results = [];
@@ -193,31 +186,37 @@ app.get("/getMessageList", async (req, res) => {
 async function getSummarywithInstructions(systemMsg, userMsg) {
   var axios = require("axios");
 
-  messages = [
-    { role: "system", content: systemMsg },
-    { role: "user", content: userMsg },
-  ];
+  let apiresult = "API Error";
 
-  var data = JSON.stringify({
-    model: "gpt-3.5-turbo",
-    messages,
-    temperature: 0.5,
-  });
+  try {
+    messages = [
+      { role: "system", content: systemMsg },
+      { role: "user", content: userMsg },
+    ];
 
-  var config = {
-    method: "post",
-    maxBodyLength: Infinity,
-    url: "https://api.openai.com/v1/chat/completions",
-    headers: {
-      Authorization: `Bearer ${process.env.apiKey}`,
-      "Content-Type": "application/json",
-    },
-    data: data,
-  };
+    var data = JSON.stringify({
+      model: "gpt-3.5-turbo",
+      messages,
+      temperature: 0.5,
+    });
 
-  const result = await axios(config);
+    var config = {
+      method: "post",
+      maxBodyLength: Infinity,
+      url: "https://api.openai.com/v1/chat/completions",
+      headers: {
+        Authorization: `Bearer ${process.env.apiKey}`,
+        "Content-Type": "application/json",
+      },
+      data: data,
+    };
 
-  return result.data.choices[0].message;
+    const result = await axios(config);
+
+    apiresult = result.data.choices[0].message;
+  } finally {
+    return apiresult;
+  }
 }
 
 // Async function to get a summary of the given text
