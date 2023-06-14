@@ -53,7 +53,7 @@ app.post("/createPage", async (req, res) => {
     return text;
   });
 
-  console.log({ body });
+  //console.log({ body });
   const payload = {
     parent: {
       database_id: "fd6156d0cfce4550bcfeabe28456a78b",
@@ -82,7 +82,7 @@ app.post("/createPage", async (req, res) => {
       },
     ],
   };
-  console.log({ payload });
+  //console.log({ payload });
 
   const response = await notion.pages.create(payload);
   res.json(response);
@@ -91,7 +91,7 @@ app.post("/createPage", async (req, res) => {
 // Route to get a summary of a given transcript
 app.post("/getSummary", async (req, res) => {
   let summmary = null;
-  console.log(req.body);
+  //console.log(req.body);
 
   summary = await getSummary(req.body.transcript, req.body.actas);
 
@@ -157,14 +157,14 @@ async function getNotionTemplates() {
       });
     return results;
   } catch (x) {
-    console.log({ debug: response.results });
+    //console.log({ debug: response.results });
   }
 }
 
 // Async function to get system and user messages for a given action and text
 async function getMessages(action, text) {
   const templates = await getNotionTemplates();
-  console.log({ templates });
+  //console.log({ templates });
   const msgs = templates.filter((x) => x.title === action);
 
   const result = {
@@ -195,9 +195,9 @@ async function getSummarywithInstructions(systemMsg, userMsg) {
     ];
 
     var data = JSON.stringify({
-      model: "gpt-3.5-turbo",
+      model: "gpt-3.5-turbo-16k",
       messages,
-      temperature: 0.5,
+      temperature: 0.7,
     });
 
     var config = {
