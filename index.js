@@ -13,31 +13,25 @@ const token = "secret_JUsbKVd6EB0zgqwe1gWo4SmThx5Q9Jo2CFT4YP0Oi3f";
 
 // Creating an instance of OpenAI API
 const openai = new OpenAIApi(configuration);
+const bodyParser = require("body-parser");
 
 // Initializing the Express app
+
+const multer = require("multer");
+var storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    cb(null, "uploads");
+  },
+  filename: function (req, file, cb) {
+    cb(null, file.fieldname + "-" + Date.now() + ".mp3");
+  },
+});
+var upload = multer({ storage: storage });
+
 const app = express();
-
-// Adding CORS middleware to allow cross-origin requests
 app.use(cors());
-
-// Adding body-parser middleware to parse incoming request bodies
-var bodyParser = require("body-parser");
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(bodyParser.json());
-
-// Async function to get transcription from an audio file
-async function getTranscription(file) {
-  console.log("transcripting");
-  try {
-    const result = await openai.createTranscription(
-      fs.createReadStream(file),
-      "whisper-1"
-    );
-    return result.data.text;
-  } catch (error) {
-    return "Error";
-  }
-}
 
 app.post("/createPage", async (req, res) => {
   const notion = new Client({ auth: token });
@@ -95,20 +89,27 @@ app.post("/getSummary", async (req, res) => {
 
   summary = await getSummary(req.body.transcript, req.body.actas);
 
+  console.log({ summary });
   res.json({ summary });
 });
 
-// Multer middleware to handle file uploads
-const multer = require("multer");
-var storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-    cb(null, "uploads");
-  },
-  filename: function (req, file, cb) {
-    cb(null, file.fieldname + "-" + Date.now() + ".mp3");
-  },
+app.post("/getSummaryStream", async (req, res) => {
+  let summmary = null;
+  //console.log(req.body);
+  res.setHeader("Content-Type", "text/html; charset=utf-8");
+  res.setHeader("Transfer-Encoding", "chunked");
+  summary = await getSummaryStream(req.body.transcript, req.body.actas);
+
+  result.data.on("data", (x) => {
+    try {
+      d = x.toString();
+      const data = JSON.parse(d.replace("data: ", ""));
+      res.write(data.choices[0].delta.content);
+    } catch (err) {
+      res.end();
+    }
+  });
 });
-var upload = multer({ storage: storage });
 
 // Route to handle file uploads and get the transcription of the uploaded file
 app.post("/upload", upload.single("file"), async (req, res, next) => {
@@ -123,16 +124,25 @@ app.post("/upload", upload.single("file"), async (req, res, next) => {
 
   res.json({ result });
 });
+// Route to get a list of available message actions
+app.get("/getMessageList", async (req, res) => {
+  const result = await getNotionTemplates();
+
+  res.json(result.map((x) => x.title));
+});
 
 // Default route to check if the server is up and running
 app.get("/", async (req, res) => {
-  const test = await getMessages(
-    "act as an assistant to take note",
-    "hello world"
-  );
-  //console.log(test);
+  const result = await getSummarywithInstructionsStream("", "Hello world");
+  result.data.on("data", (x) => {
+    try {
+      d = x.toString();
+      const data = JSON.parse(d.replace("data: ", ""));
+      console.log(data.choices[0].delta.content);
+    } catch (error) {}
+  });
 
-  res.json({ server: "up" });
+  res.json({ X: "Y" });
 });
 
 async function getNotionTemplates() {
@@ -161,6 +171,20 @@ async function getNotionTemplates() {
   }
 }
 
+// Async function to get transcription from an audio file
+async function getTranscription(file) {
+  console.log("transcripting");
+  try {
+    const result = await openai.createTranscription(
+      fs.createReadStream(file),
+      "whisper-1"
+    );
+    return result.data.text;
+  } catch (error) {
+    return "Error";
+  }
+}
+
 // Async function to get system and user messages for a given action and text
 async function getMessages(action, text) {
   const templates = await getNotionTemplates();
@@ -175,17 +199,8 @@ async function getMessages(action, text) {
   return result;
 }
 
-// Route to get a list of available message actions
-app.get("/getMessageList", async (req, res) => {
-  const result = await getNotionTemplates();
-
-  res.json(result.map((x) => x.title));
-});
-
 // Async function to get a summary of the given text based on a system message and a user message
 async function getSummarywithInstructions(systemMsg, userMsg) {
-  var axios = require("axios");
-
   let apiresult = "API Error";
 
   try {
@@ -194,26 +209,40 @@ async function getSummarywithInstructions(systemMsg, userMsg) {
       { role: "user", content: userMsg },
     ];
 
-    var data = JSON.stringify({
+    const completion = await openai.createChatCompletion({
       model: "gpt-3.5-turbo-16k",
-      messages,
       temperature: 0.7,
+      messages,
+      stream: false,
     });
 
-    var config = {
-      method: "post",
-      maxBodyLength: Infinity,
-      url: "https://api.openai.com/v1/chat/completions",
-      headers: {
-        Authorization: `Bearer ${process.env.apiKey}`,
-        "Content-Type": "application/json",
+    apiresult = completion.data.choices[0].message.content;
+  } finally {
+    return apiresult;
+  }
+}
+
+// Async function to get a summary of the given text based on a system message and a user message
+async function getSummarywithInstructionsStream(systemMsg, userMsg) {
+  let apiresult = "API Error";
+
+  try {
+    messages = [
+      { role: "system", content: systemMsg },
+      { role: "user", content: userMsg },
+    ];
+
+    const completion = await openai.createChatCompletion(
+      {
+        model: "gpt-3.5-turbo-16k",
+        temperature: 0.7,
+        messages,
+        stream: true,
       },
-      data: data,
-    };
+      { responseType: "stream" }
+    );
 
-    const result = await axios(config);
-
-    apiresult = result.data.choices[0].message;
+    apiresult = completion;
   } finally {
     return apiresult;
   }
@@ -224,6 +253,13 @@ async function getSummary(text, actas) {
   const { systemMsg, userMsg } = await getMessages(actas, text);
 
   return await getSummarywithInstructions(systemMsg, userMsg);
+}
+
+// Async function to get a summary of the given text
+async function getSummaryStream(text, actas) {
+  const { systemMsg, userMsg } = await getMessages(actas, text);
+
+  return getSummarywithInstructionsStream(systemMsg, userMsg);
 }
 
 // Starting the server
